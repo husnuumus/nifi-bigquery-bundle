@@ -1,6 +1,5 @@
 package org.apache.nifi.processors.bigquery;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.bigquery.BigQuery;
@@ -10,6 +9,7 @@ import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.components.PropertyValue;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
@@ -44,8 +44,15 @@ public class PutBigquery extends AbstractBigqueryProcessor {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
+    static final PropertyDescriptor OMIT_FIELDS = new PropertyDescriptor.Builder()
+            .name("Fields to omit in json")
+            .description("The list of the fields that will be removed from json. These fields should not be listed on bigquery. Ex:field_name1,field_name2")
+            .required(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
     public static final List<PropertyDescriptor> properties = Collections.unmodifiableList(
-            Arrays.asList(SERVICE_ACCOUNT_CREDENTIALS_JSON, READ_TIMEOUT, CONNECTION_TIMEOUT, PROJECT, DATASET, TABLE));
+            Arrays.asList(SERVICE_ACCOUNT_CREDENTIALS_JSON, READ_TIMEOUT, CONNECTION_TIMEOUT, PROJECT, DATASET, TABLE, OMIT_FIELDS));
 
 
     @Override
@@ -59,12 +66,20 @@ public class PutBigquery extends AbstractBigqueryProcessor {
         FlowFile flowFile = session.get();
         final String table = context.getProperty(TABLE).getValue();
         final String dataset = context.getProperty(DATASET).getValue();
-
+        PropertyValue omitFieldsProperty = context.getProperty(OMIT_FIELDS);
 
         ObjectMapper mapper = new ObjectMapper();
         try {
             Map<String, Object> jsonDocument = mapper.readValue(session.read(flowFile), new TypeReference<NotNullValuesHashMap<String, Object>>() {
             });
+
+            if (omitFieldsProperty.isSet()) { // if we have any fields that will be removed from the json record :
+                for (String omit_key : omitFieldsProperty.getValue().split(",")) {
+                    if (jsonDocument.containsKey(omit_key))
+                        jsonDocument.remove(omit_key);
+                }
+            }
+
             InsertAllRequest.RowToInsert rowToInsert = InsertAllRequest.RowToInsert.of(jsonDocument);
             BigQuery bigQuery = getBigQuery();
 
