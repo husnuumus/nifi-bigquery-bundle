@@ -20,6 +20,10 @@ Save Flow File content on a BigQuery table. The format of data must be JSON.
 - Connection Time Out: the time to wait during connection establishment with BigQuery service
 - Project Id: Google CLoud project id. If not specified, the process try to obtain it from provided credentials mentioned above.
 
+##### Not Required Properties
+
+- Fields to omit in json : The list of the fields that will be removed from json. These fields should not be listed on bigquery. Ex:field_name1,field_name2
+
 ### Deploy Bundle
 
 Clone this repository
