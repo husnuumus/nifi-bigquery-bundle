@@ -64,6 +64,11 @@ public class PutBigquery extends AbstractBigqueryProcessor {
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
         FlowFile flowFile = session.get();
+
+        if (flowFile == null) { // some threads could not got data to process.
+            return;
+        }
+
         final String table = context.getProperty(TABLE).getValue();
         final String dataset = context.getProperty(DATASET).getValue();
         PropertyValue omitFieldsProperty = context.getProperty(OMIT_FIELDS);
